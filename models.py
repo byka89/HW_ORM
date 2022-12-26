@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
 login = 'postgres'
-kod = 'Shitko77'
+kod = '!Qa123'
 
 engine = sq.create_engine(f'postgresql+psycopg2://{login}:{kod}$@localhost:5432/book')
 connection = engine.connect()
