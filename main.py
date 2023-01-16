@@ -1,97 +1,50 @@
-from sqlalchemy import create_engine, ForeignKey, Column, String, Integer, Date
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker
+import sqlalchemy as sq
+from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+from models import create_tables, Publisher, Book, Sale, Shop, Stock
 
-Base = declarative_base()
+DSN = 'sqlite:///:memory:'
+# engine = sq.create_engine(DSN, echo=True)
+engine = sq.create_engine(DSN)
 
+create_tables(engine)
 
-class Publisher(Base):
-    __tablename__ = 'publisher'
-    id_publ = Column('id_publ', Integer, primary_key=True)
-    name = Column('name', String(length=40))
+p1 = Publisher(name='Альпина', books = [
+    Book(title="6 минут: Ежедневник, который изменит вашу жизнь"),
+    Book(title="Тонкое искусство пофигизма: Парадоксальный способ жить счастливо"),
+    Book(title="Думай как математик: Как решать любые проблемы быстрее и эффективнее")])
+p2 = Publisher(name='Питер', books = [
+    Book(title="Python. Лучшие практики и инструменты"),
+    Book(title="Python. Чистый код для продолжающих"),
+    Book(title="Основы Data Science и Big Data. Python и наука о данных")])
+b1 = Book(title="Паттерны разработки на Python: TDD, DDD и событийно-ориентированная архитектура", publisher=p2)
+b2 = Book(title="Лабиринты Ехо", publisher=p2)
+b3 = Book(title="Зачем нужны эмоции", publisher=p1)
 
-    def __init__(self, id_publ, name):
-        self.id_publ = id_publ
-        self.name = name
+shop1 = Shop(name="Лабиринт")
+stock1 = Stock(book=b1, shop=shop1, count=50)
+sale1 = Sale(price=250, stock=stock1, count=25)
+stock2 = Stock(book=b3, shop=shop1, count=50)
+sale2 = Sale(price=200, stock=stock2, count=15)
 
-    def __repr__(self):
-        return f'({self.id_publ}) {self.name}'
-
-
-class Book(Base):
-    __tablename__ = 'book'
-    id_book = Column('id_book', Integer, primary_key=True)
-    title = Column('title', String(length=40))
-    id_publ = Column('id_publ', Integer, ForeignKey('publisher.id_publ'))
-
-    def __repr__(self):
-        return f'{self.title}'
-
-
-    def __init__(self, id_book, title, id_publ):
-        self.id_book = id_book
-        self.title = title
-        self.id_publ = id_publ
-
-
-class Shop(Base):
-    __tablename__ = 'shop'
-    id_shop = Column('id_shop', Integer, primary_key=True)
-    name = Column('name', String(length=40))
-
-    def __init__(self, id_shop, name):
-        self.id_shop = id_shop
-        self.name = name
-
-    def __repr__(self):
-        return f'{self.name}'
-
-
-
-class Stock(Base):
-    __tablename__ = 'stock'
-    id_stock = Column('id_stock', Integer, primary_key=True)
-    id_book = Column('id_book', Integer, ForeignKey('book.id_book'))
-    id_shop = Column('id_shop', Integer, ForeignKey('shop.id_shop'))
-    count = Column('count', Integer)
-
-    def __init__(self, id_stok, id_book, id_shop, count):
-        self.id_stock = id_stok
-        self.id_book = id_book
-        self.id_shop = id_shop
-        self.count = count
-
-
-class Sale(Base):
-    __tablename__ = 'sale'
-    id_price = Column('id_price', Integer, primary_key=True)
-    price = Column('price', Integer)
-    date_sale = Column('date_sale', Date)
-    id_stock = Column('id_stock', Integer, ForeignKey('stock.id_stock'))
-    count = Column('count', Integer)
-
-    def __init__(self, id_price, price, date_sale, id_stock, count):
-        self.id_price = id_price
-        self.price = price
-        self.date_sale = date_sale
-        self.id_stock = id_stock
-        self.count = count
-
-    def __repr__(self):
-        return f'{self.price} | {self.date_sale}'
-
-
-
-engine = create_engine('postgresql://postgres:1109@localhost:5432/dbalchemy')
-Base.metadata.create_all(bind=engine)
+shop2 = Shop(name="ЕвроБук")
+stock3 = Stock(book=b2, shop=shop2, count=50)
+sale3 = Sale(price=250, stock=stock3, count=25)
+stock4 = Stock(book=b2, shop=shop2, count=50)
+sale4 = Sale(price=300, stock=stock4, count=15)
 
 Session = sessionmaker(bind=engine)
-session = Session()
+s = Session()
+s.add_all([p1, p2, b1, b2, b3, shop1, shop2, stock1, stock2, stock3, stock4, sale1, sale2, sale3, sale4])
+s.commit()
 
-zapros = input()
-result = session.query(Book, Shop, Sale).filter(Publisher.name == zapros).filter(Publisher.id_publ == Book.id_publ).filter(Book.id_publ == Stock.id_book).filter(Stock.id_shop == Shop.id_shop).filter(Stock.id_stock == Sale.id_stock).all()
-for r in result:
-    print(f'{r[0]} | {r[1]} | {r[2]}')
+# x = input()
+x = 'Альпина'
+# print(s.query(Publisher).filter(sq.or_(Publisher.id==x, Publisher.name==x)).all()[0])
 
+p = s.query(Publisher).filter(sq.or_(Publisher.id==x, Publisher.name==x)).all()[0]
+sales = s.query(Sale).join(Stock).join(Shop).join(Book).filter(Book.publisher==p).subquery('t')
+shops = s.query(Shop).join(Stock).join(Sale).filter(Sale.id==sales.c.id)
+for i in shops:
+    print(i)
 
-session.close()
+s.close()

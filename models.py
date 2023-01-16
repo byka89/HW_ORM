@@ -1,45 +1,52 @@
 import sqlalchemy as sq
-from sqlalchemy.orm import relationship, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-
-login = 'postgres'
-kod = '!Qa123'
-
-engine = sq.create_engine(f'postgresql+psycopg2://{login}:{kod}$@localhost:5432/book')
-connection = engine.connect()
-Session = sessionmaker(bind=engine)
-Session.configure(bind=engine)
-
+from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
+
+
 class Publisher(Base):
-    __tablename__ = 'publisher'
+    __tablename__ =  'publishers'
     id = sq.Column(sq.Integer, primary_key=True)
-    name = sq.Column(sq.String)
-    book = relationship('Book', backref='publisher')
+    name = sq.Column(sq.String, unique=True)
+    def __repr__(self):
+        return f"Publisher(id={self.id}, name={self.name})"
+
 
 class Book(Base):
-    __tablename__ = 'book'
+    __tablename__ =  'books'
     id = sq.Column(sq.Integer, primary_key=True)
     title = sq.Column(sq.String)
-    id_publisher = sq.Column(sq.Integer, sq.ForeignKey('publisher.id'))
+    id_publisher = sq.Column(sq.Integer, sq.ForeignKey("publishers.id"), nullable=False)
+    publisher = relationship("Publisher", backref="books")
+
 
 class Shop(Base):
-    __tablename__ = 'shop'
+    __tablename__ =  'shops'
     id = sq.Column(sq.Integer, primary_key=True)
-    name = sq.Column(sq.String)
-    stocks = relationship('Stock')
+    name = sq.Column(sq.String, unique=True)
+    def __repr__(self):
+        return f"Shop(id={self.id}, name={self.name})"
+
 
 class Stock(Base):
-    __tablename__ = 'stock'
-    id_book = sq.Column(sq.Integer, sq.ForeignKey('book.id'), primary_key=True)
-    id_shop = sq.Column(sq.Integer, sq.ForeignKey('shop.id'), primary_key=True)
-    count = sq.Column(sq.Integer)
+    __tablename__ = 'stocks'
+    id = sq.Column(sq.Integer, primary_key=True)
+    id_book = sq.Column(sq.Integer, sq.ForeignKey("books.id"), nullable=False)
+    id_shop = sq.Column(sq.Integer, sq.ForeignKey("shops.id"), nullable=False)
+    count = sq.Column(sq.Integer, nullable=False)
+    book = relationship("Book", backref="stocks")
+    shop = relationship("Shop", backref="stocks")
+    sales = relationship("Sale", backref="stock")
 
-Base.metadata.create_all(engine)
 
-publ_input = int(input('Введите идентификатор целевого издателя '))
-if __name__ == '__main__':
-    session = Session()
-    shop_list = session.query(Shop.name).join(Stock).join(Book).join(Publisher).filter(Publisher.id == publ_input).all()
-    print(shop_list)
+class Sale(Base):
+    __tablename__ = 'sales'
+    id = sq.Column(sq.Integer, primary_key=True)
+    price = sq.Column(sq.Float, nullable=False)
+    date_sale = sq.Column(sq.Date)
+    id_stock = sq.Column(sq.Integer, sq.ForeignKey("stocks.id"), nullable=False)
+    count = sq.Column(sq.Integer, nullable=False)
+
+
+def create_tables(engine):
+    Base.metadata.create_all(engine)
